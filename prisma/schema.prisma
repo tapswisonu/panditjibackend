@@ -1,0 +1,152 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+}
+
+enum Role {
+  CUSTOMER
+  PANDIT
+  ADMIN
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+}
+
+enum LocationType {
+  HOME_VISIT
+  TEMPLE
+  ONLINE
+}
+
+model User {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  phone     String   @unique
+  email     String?  @unique
+  name      String?
+  password  String
+  role      Role     @default(CUSTOMER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  customerBookings Booking[] @relation("CustomerBookings")
+  reviewsGiven     Review[]  @relation("ReviewAuthor")
+  wallet           Wallet?
+
+  panditProfile PanditProfile?
+}
+
+model PanditProfile {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId          String   @unique @db.ObjectId
+  user            User     @relation(fields: [userId], references: [id])
+  expertise       String[]
+  experienceYears Int      @default(0)
+  isVerified      Boolean  @default(false)
+  bio             String?
+  documents       String[] // URLs to certificates/ID
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  bookings         Booking[]          @relation("PanditBookings")
+  reviewsReceived  Review[]           @relation("ReviewTarget")
+  availability     AvailabilitySlot[]
+}
+
+model PoojaPackage {
+  id                String   @id @default(auto()) @map("_id") @db.ObjectId
+  name              String
+  description       String
+  price             Float
+  durationMinutes   Int
+  panditsRequired   Int      @default(1)
+  samagriList       SamagriList?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  bookings Booking[]
+}
+
+model SamagriList {
+  id             String       @id @default(auto()) @map("_id") @db.ObjectId
+  poojaPackageId String       @unique @db.ObjectId
+  poojaPackage   PoojaPackage @relation(fields: [poojaPackageId], references: [id])
+  requiredItems  String[]
+  optionalKit    String[]
+}
+
+model Booking {
+  id             String         @id @default(auto()) @map("_id") @db.ObjectId
+  customerId     String         @db.ObjectId
+  customer       User           @relation("CustomerBookings", fields: [customerId], references: [id])
+  panditId       String?        @db.ObjectId
+  pandit         PanditProfile? @relation("PanditBookings", fields: [panditId], references: [id])
+  poojaPackageId String         @db.ObjectId
+  poojaPackage   PoojaPackage   @relation(fields: [poojaPackageId], references: [id])
+  
+  scheduledDate  DateTime
+  locationType   LocationType
+  address        String? // Nullable if ONLINE or TEMPLE
+  status         BookingStatus @default(PENDING)
+  totalAmount    Float
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  payment Payment?
+}
+
+model Payment {
+  id             String   @id @default(auto()) @map("_id") @db.ObjectId
+  bookingId      String   @unique @db.ObjectId
+  booking        Booking  @relation(fields: [bookingId], references: [id])
+  razorpayId     String?
+  amount         Float
+  status         String   @default("PENDING") // PENDING, SUCCESS, FAILED
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model Review {
+  id        String        @id @default(auto()) @map("_id") @db.ObjectId
+  rating    Int           // 1 to 5
+  comment   String?
+  authorId  String        @db.ObjectId
+  author    User          @relation("ReviewAuthor", fields: [authorId], references: [id])
+  targetId  String        @db.ObjectId
+  target    PanditProfile @relation("ReviewTarget", fields: [targetId], references: [id])
+  createdAt DateTime      @default(now())
+}
+
+model Wallet {
+  id      String @id @default(auto()) @map("_id") @db.ObjectId
+  userId  String @unique @db.ObjectId
+  user    User   @relation(fields: [userId], references: [id])
+  balance Float  @default(0.0)
+  
+  transactions WalletTransaction[]
+}
+
+model WalletTransaction {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  walletId  String   @db.ObjectId
+  wallet    Wallet   @relation(fields: [walletId], references: [id])
+  amount    Float
+  type      String   // CREDIT, DEBIT
+  reason    String   // BOOKING_EARNING, WITHDRAWAL, REFUND
+  createdAt DateTime @default(now())
+}
+
+model AvailabilitySlot {
+  id        String        @id @default(auto()) @map("_id") @db.ObjectId
+  panditId  String        @db.ObjectId
+  pandit    PanditProfile @relation(fields: [panditId], references: [id])
+  startTime DateTime
+  endTime   DateTime
+  isBooked  Boolean       @default(false)
+}

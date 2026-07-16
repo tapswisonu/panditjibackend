@@ -1,5 +1,5 @@
-import { Request, Response } from 'express';
-import prisma from '../utils/prisma';
+import type { Request, Response } from 'express';
+import prisma from '../utils/prisma.js';
 
 export const updateProfile = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -48,6 +48,10 @@ export const getBookings = async (req: Request, res: Response): Promise<void> =>
 export const acceptBooking = async (req: Request, res: Response): Promise<void> => {
   try {
     const { bookingId } = req.params;
+    if (typeof bookingId !== 'string') {
+      res.status(400).json({ error: 'Invalid Booking ID' });
+      return;
+    }
     const userId = (req as any).user.userId;
     
     const profile = await prisma.panditProfile.findUnique({ where: { userId } });

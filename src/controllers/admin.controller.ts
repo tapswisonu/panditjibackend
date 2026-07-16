@@ -1,5 +1,5 @@
-import { Request, Response } from 'express';
-import prisma from '../utils/prisma';
+import type { Request, Response } from 'express';
+import prisma from '../utils/prisma.js';
 
 export const createPoojaPackage = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -38,6 +38,10 @@ export const getUnverifiedPandits = async (req: Request, res: Response): Promise
 export const verifyPandit = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
+    if (typeof id !== 'string') {
+      res.status(400).json({ error: 'Invalid ID' });
+      return;
+    }
     const profile = await prisma.panditProfile.update({
       where: { id },
       data: { isVerified: true },
